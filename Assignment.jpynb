@@ -1,0 +1,97 @@
+# %%
+import pandas as pd
+import duckdb 
+import matplotlib.pyplot as plt
+import numpy as np
+# %%
+emp = pd.read_csv("machine-readable-business-employment-data-mar-2024-quarter.csv")
+# %%
+fin = pd.read_csv("business-financial-data-march-2024-csv.csv")
+# %%
+emp.head()
+# %%
+fin.head()
+# %%
+conn = duckdb.connect('assignment.db')
+conn.execute("Create or replace table Fin as FROM 'business-financial-data-march-2024-csv.csv'")
+# %%
+conn.execute("Create or replace table emp as FROM 'machine-readable-business-employment-data-mar-2024-quarter.csv'")
+# %%
+conn.execute("select count(*) from emp;").df()
+#%%
+conn.execute("select count(*) from fin;").df()
+# %%
+conn.execute("Describe emp;").df()
+#%%
+conn.execute("Describe fin;").df()
+# %%
+conn.execute("select Series_title_1, count(*)  from emp group by Series_title_1;").df()
+# %%
+conn.execute("ALTER TABLE emp ADD COLUMN Year INTEGER;")
+conn.execute("UPDATE emp SET Year = SUBSTRING(CAST(Period AS VARCHAR), 1, 4);")
+#%%
+conn.execute("select DISTINCT Series_title_1 from emp;").df()
+# %%
+conn.execute("SELECT DISTINCT Series_title_1, Series_title_2, Series_title_3 from emp;").df()
+# %%
+conn.execute("SELECT  Series_title_2, Series_title_3 from emp where Series_title_1 = 'Filled jobs';").df()
+# %%
+conn.execute("SELECT * " \
+"FROM emp " \
+"WHERE Year < 2016" \
+"AND Series_title_1 = 'Filled jobs'" \
+"AND TRIM(Category) = 'Industry by employment variable';").df()
+# %%
+# Queries for Question 1
+# %%
+conn.execute("ALTER TABLE fin ADD COLUMN Year INTEGER;")
+conn.execute("UPDATE emp SET Year = SUBSTRING(CAST(Period AS VARCHAR), 1, 4);")
+conn.execute("ALTER TABLE fin RENAME COLUMN \"Group\" TO Category;" ).df()
+# %%
+conn.execute("SELECT * " \
+"FROM fin " \
+"WHERE Data_value IS NULL;").df()
+# %%
+# Query for Question 2
+conn.execute("SELECT Period, ROUND(SUM(Data_value),2) AS Total_value, Series_title_2 " \
+"FROM fin " \
+"WHERE Series_title_4 = 'Seasonally adjusted'" \
+"AND Category LIKE '%NZSIOC Level 2%'" \
+"AND Series_title_1 = 'Sales (operating income)'" \
+" GROUP BY Period, Series_title_2 "\
+"ORDER BY Total_value DESC;").df()
+# %%
+# Queries doe Question 3
+conn.execute("ALTER TABLE emp ADD COLUMN Quarter INTEGER;")
+#%%
+conn.execute("UPDATE emp SET Quarter = CASE " \
+"WHEN SUBSTRING(CAST(Period AS VARCHAR), 6, 2) IN ('01', '02', '03') THEN 1" \
+"WHEN SUBSTRING(CAST(Period AS VARCHAR), 6, 2) IN ('04', '05', '06') THEN 2" \
+"WHEN SUBSTRING(CAST(Period AS VARCHAR), 6, 2) IN ('07', '08', '09') THEN 3" \
+"WHEN SUBSTRING(CAST(Period AS VARCHAR), 6, 2) IN ('10', '11', '12') THEN 4"
+"ELSE NULL END;")
+# %%
+conn.execute("SELECT t.Series_title_2,  ROUND(AVG(t.Total_Emp),2) AS Avg_Emp " \
+   "FROM " \
+    "(SELECT Quarter, Series_title_2, SUM(Data_value) as Total_Emp " \
+        "FROM emp " \
+        "WHERE Category = 'Territorial authority by employment variable' " \
+        "GROUP BY Quarter, Series_title_2) t " \
+    "GROUP BY t.Series_title_2 " \
+    "ORDER BY Avg_Emp DESC;").df()
+# %%
+# Queries for Question 5
+emp.describe()
+
+# %%
+fin.describe()
+
+# %%
+## Answer to Question 4
+# Change the incorrect datatypes to match what is required. 
+# Like date column using emp['Period'] = emp['Period'].astype(date)
+# Replacing Missing or Null values with another value like Mean using emp.fillna(x, inplace = True)
+# or dropping them entirely using fin.dropna()
+# Ensuring column names don't have reserved words like 'Group'
+# Identifying duplicates by using the method print(fin.duplicated()) and then removing them
+# by running emp.drop_duplicates(inplace=True)
